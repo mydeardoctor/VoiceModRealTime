@@ -1,8 +1,6 @@
 import queue
 import struct
 
-import matplotlib
-import matplotlib.pyplot as plt
 import pyaudio
 
 from noise_generator import NoiseGenerator
@@ -37,7 +35,6 @@ class Stream:
         self._sine_wave_generator: SineWaveGenerator = sine_wave_generator
         self._noise_generator: NoiseGenerator = noise_generator
         self._add_noise: bool = add_noise
-        self._file = open("text.txt", "w") #TODO
 
         self._stream: pyaudio.PyAudio.Stream = self._pyaudio_object.open(
             input=True,
@@ -73,20 +70,14 @@ class Stream:
             input_bytes: bytes = in_data[i:i + self._bytes_per_sample]
             input_float: float = (struct.unpack("f", input_bytes))[0] * 5 #TODO
           
-            self._file.write(f"{input_float}\n") #TODO
-
             # Get sine wave point.
             sine_wave_point: float = \
                 self._sine_wave_generator.get_sine_wave_point()
             
-            self._file.write(f"{sine_wave_point}\n") #TODO
-
             # Modulate.
             modulated_output: float = RingModulator.modulate(
                 input_signal_point=input_float,
                 sine_wave_point=sine_wave_point) #TODO
-
-            self._file.write(f"{modulated_output}\n") #TODO
 
             # Add noise.
             modulated_output_with_noise: float = 0.0
@@ -97,6 +88,7 @@ class Stream:
                 modulated_output_with_noise = modulated_output
 
             # Add to output.
+            # output_bytes: bytes = struct.pack("f", input_float)
             output_bytes: bytes = struct.pack("f", modulated_output_with_noise)
             for output_byte in output_bytes:
                 output_byte_array.append(output_byte)

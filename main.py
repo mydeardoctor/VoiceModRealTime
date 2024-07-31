@@ -15,50 +15,37 @@ from stream import Stream
 
 
 # TODO
-# Громкость выше
-# чеклист написания программы любой
-# автодокументация в питоне. докстринги.
-# тесты в питоне. юнит тесты.
-# проверка статической типизации в питоне
+# Нарисовать графики.
 
-# TODO chek arguments for None
-# TODO громкость!!!!!!
+# Check arguments for None. Exceptions.
+# Limit amplitude to 1.
+# Размер буфера, latency. https://www.portaudio.com/docs/latency.html
+# убрать matplotlib
+# requirements.txt
 
-# TODO размер буфера
-# TODO get latency
-# TODO run as root
-# TODO https://www.portaudio.com/docs/latency.html
-# TODO написать portaudio на C++
+# cli interface. громкость, частота модуляции
+# main thread ждёт частоту, громкость. мьютексы
+# Громкость выше.
 
-# TODO рефакторинг
-# TODO убрать matplotlib
-# TODO exceptions при принятии аргументов
-# TODO limit amplitude to 1
-# TODO sine wave amplitude!!!!!!!!! Чем больше амплитуда синусоиды, тем сильнее модуляция? но я не могу увеличить синусоиду, зато могу увеличить сигнал? Нормалайз сигнал по громкости. Moving average.
-# TODO float output range? -1 1? PCM float.
-# TODO другая частота модуляции
-# TODO requirements.txt
-# TODO git
+# raspberry не вывозит, убрать всё лишнее, квантизировать. не считать синусоиду. pyaudio через callbacks
+# Рефакторинг.
+# Docstrings for modules, classes, functions. PEP257. Document exceptions raised
 
-# TODO run at startup
-# TODO power saving raspi
-# TODO подключиться к распберри по телефону
-# TODO cli interface. громкость, частота модуляции
+# Подобрать частоту модуляции.
+# подключиться к распберри по телефону
 
-# TODO main thread ждёт частоту, громкость. мьютексы
+# README.md
 
-# TODO float range
-# TODO может ли другой телефон выходить в инет при точке доступа
-# TODO docstring. document exceptions raised
+
 def main():
     # TODO parser
-    parser = argparse.ArgumentParser(prog="PROGRAM_NAME",
-                                     description="DESCRIPTION",
-                                     epilog="EPILOG")
-    parser.add_argument("-f", "--frequency", action="store", metavar="FREQ", default=48000, help="HELP FREQ", required=False)
-    parser.add_argument("-n", "--noise", action="store_false", default=True, help="NOISE OFF", required=False)
-    namespace: argparse.Namespace = parser.parse_args() #Exception
-    print(namespace)
+    # parser = argparse.ArgumentParser(prog="PROGRAM_NAME",
+    #                                  description="DESCRIPTION",
+    #                                  epilog="EPILOG")
+    # parser.add_argument("-f", "--frequency", action="store", metavar="FREQ", default=48000, help="HELP FREQ", required=False)
+    # parser.add_argument("-n", "--noise", action="store_false", default=True, help="NOISE OFF", required=False)
+    # namespace: argparse.Namespace = parser.parse_args() #Exception
+    # print(namespace)
 
     SAMPLING_FREQUENCY: int = 48000
     SINE_WAVE_FREQUENCY: int = 220#TODO 230 240 
@@ -140,7 +127,7 @@ def main():
 
     finally:
         stream.close()
-        pyaudio_object.terminate() # TODO перенести в stream
+        pyaudio_object.terminate() # TODO перенести в stream. см KWS
 
 
 if __name__ == "__main__":
