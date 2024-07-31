@@ -3,9 +3,12 @@ import collections
 import queue
 import struct
 import time
+import threading
 
 import matplotlib
 import matplotlib.pyplot as plt
+import matplotlib.animation as animation
+import numpy as np
 import pyaudio
 
 from noise_generator import NoiseGenerator
@@ -37,6 +40,16 @@ from stream import Stream
 # README.md
 
 
+# ГРОМКОСТЬ:
+# Без модуляции звук такой же громкости, как и виндоусовский диктофон. Но в каком диапазоне аудио? Построить в матплотлибе, чтобы узнать диапазон.ГРОМКОСТЬ
+# Почему модуляция тише? Построить матплотлибе.
+
+
+# Implement volume change menu
+
+
+
+
 def main():
     # TODO parser
     # parser = argparse.ArgumentParser(prog="PROGRAM_NAME",
@@ -47,6 +60,8 @@ def main():
     # namespace: argparse.Namespace = parser.parse_args() #Exception
     # print(namespace)
 
+
+
     SAMPLING_FREQUENCY: int = 48000
     SINE_WAVE_FREQUENCY: int = 220#TODO 230 240 
     FORMAT_OF_SAMPLE = pyaudio.paFloat32
@@ -55,6 +70,9 @@ def main():
     ADD_NOISE: bool = True
     NOISE_DIVIDER: int = 100000
 
+
+
+
     sine_wave_generator: SineWaveGenerator = SineWaveGenerator(
         sampling_frequency=SAMPLING_FREQUENCY,
         sine_wave_frequency=SINE_WAVE_FREQUENCY)
@@ -62,7 +80,10 @@ def main():
 
     noise_generator: NoiseGenerator = NoiseGenerator(divider=NOISE_DIVIDER)
 
-    multithread_queue: queue.Queue = queue.Queue(maxsize=SAMPLES_PER_BUFFER*4*10) #TODO
+    multithread_queue: queue.Queue = queue.Queue(maxsize=SAMPLES_PER_BUFFER*4*40) #TODO
+    multithread_queue1: queue.Queue = queue.Queue(maxsize=SAMPLES_PER_BUFFER*4*40)
+    multithread_queue2: queue.Queue = queue.Queue(maxsize=SAMPLES_PER_BUFFER*4*40)
+    multithread_queue3: queue.Queue = queue.Queue(maxsize=SAMPLES_PER_BUFFER*4*40)
 
     pyaudio_object: pyaudio.PyAudio = pyaudio.PyAudio()
     stream: Stream = Stream(
@@ -73,13 +94,61 @@ def main():
         sampling_frequency = SAMPLING_FREQUENCY,
         sine_wave_generator=sine_wave_generator,
         noise_generator=noise_generator,
-        add_noise=ADD_NOISE)
- 
+        add_noise=ADD_NOISE,
+        multithread_queue1=multithread_queue1,
+        multithread_queue2=multithread_queue2,
+        multithread_queue3=multithread_queue3)
+    
+
+    # matplotlib
+    # Create the figure and axes for plotting
+    fig, ax = plt.subplots()
+    x = np.arange(0, SAMPLES_PER_BUFFER*4)
+    line1, = ax.plot(x, np.random.rand(SAMPLES_PER_BUFFER*4))
+    line2, = ax.plot(x, np.random.rand(SAMPLES_PER_BUFFER*4))
+    line3, = ax.plot(x, np.random.rand(SAMPLES_PER_BUFFER*4))
+    ax.set_ylim(-1, 1)  # Set y-axis limits to fit float32 audio data
+    # ax[1].set_ylim(-1, 1)  # Set y-axis limits to fit float32 audio data
+    # ax[2].set_ylim(-1, 1)  # Set y-axis limits to fit float32 audio data
+    # Create animation
+    def update_plot(frame):
+        data_input = []
+        data_sine = []
+        data_modulated = []
+        for i in range(0, SAMPLES_PER_BUFFER*4, 1):
+            try:
+                data_input_point = multithread_queue1.get(block=True)
+            except BaseException as e:
+                data_input_point = 0
+            finally:
+                data_input.append(data_input_point)
+            try:
+                data_sine_point = multithread_queue2.get(block=True)
+            except BaseException as e:
+                data_sine_point = 0
+            finally:
+                data_sine.append(data_sine_point)
+            try:
+                data_modulated_point = multithread_queue3.get(block=True)
+            except BaseException as e:
+                data_modulated_point = 0
+            finally:
+                data_modulated.append(data_modulated_point)
+
+        line1.set_ydata(data_input)
+        line2.set_ydata(data_sine)
+        line3.set_ydata(data_modulated)
+        return line1, line2, line3
+    ani = animation.FuncAnimation(fig, update_plot, blit=True, interval=(1/SAMPLING_FREQUENCY)*SAMPLES_PER_BUFFER*4)
+    plt.show(block=False)
+
     # Main thread.
     #TODO
+    
     state = 0
     try:
-        while stream.is_active() is True:
+        while stream.is_active() is True:          
+
             match state:
                 case 0:
                     print("To change volume enter 1.")
@@ -99,8 +168,10 @@ def main():
                     print("Enter 0 to return.")
                     print("Enter: ")
                     line: str = input()
-                    line_int: int = int(line)
-                    if line_int != 0:
+                    #TODO сделать тут обработку эксепшнов когда я ввожу строку или говно. и в остальных местах в меню
+                    line_float: float = float(line)
+                    if line_float != 0:
+                        stream.set_volume(new_volume=line_float)
                         print("accepted")
                         state = 0
                     else:

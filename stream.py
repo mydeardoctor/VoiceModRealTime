@@ -1,5 +1,6 @@
 import queue
 import struct
+from telnetlib import NOP
 
 import pyaudio
 
@@ -17,7 +18,10 @@ class Stream:
                  sampling_frequency: int,
                  sine_wave_generator: SineWaveGenerator,
                  noise_generator: NoiseGenerator,
-                 add_noise: bool) -> None:
+                 add_noise: bool,
+                 multithread_queue1: queue.Queue,
+                 multithread_queue2: queue.Queue,
+                 multithread_queue3: queue.Queue) -> None:
         super().__init__()
 
         # Check arguments.
@@ -35,6 +39,10 @@ class Stream:
         self._sine_wave_generator: SineWaveGenerator = sine_wave_generator
         self._noise_generator: NoiseGenerator = noise_generator
         self._add_noise: bool = add_noise
+        self._multithread_queue1 = multithread_queue1
+        self._multithread_queue2 = multithread_queue2
+        self._multithread_queue3 = multithread_queue3
+        self._volume = 1
 
         self._stream: pyaudio.PyAudio.Stream = self._pyaudio_object.open(
             input=True,
@@ -68,7 +76,7 @@ class Stream:
         while (i + self._bytes_per_sample - 1) <= (len(in_data) - 1):
             # Get sample.
             input_bytes: bytes = in_data[i:i + self._bytes_per_sample]
-            input_float: float = (struct.unpack("f", input_bytes))[0] * 5 #TODO
+            input_float: float = (struct.unpack("f", input_bytes))[0] * self._volume #TODO
           
             # Get sine wave point.
             sine_wave_point: float = \
@@ -87,11 +95,24 @@ class Stream:
             else:
                 modulated_output_with_noise = modulated_output
 
+            # PREVENT CLIPPING
+            if modulated_output_with_noise > 1:
+                modulated_output_with_noise = 1
+            elif modulated_output_with_noise < -1:
+                modulated_output_with_noise = -1
+
             # Add to output.
             # output_bytes: bytes = struct.pack("f", input_float)
             output_bytes: bytes = struct.pack("f", modulated_output_with_noise)
             for output_byte in output_bytes:
                 output_byte_array.append(output_byte)
+
+            try:
+                self._multithread_queue1.put(input_float, block=False)
+                self._multithread_queue2.put(sine_wave_point, block=False)
+                self._multithread_queue3.put(modulated_output_with_noise, block=False)
+            except BaseException as e:
+                NOP
 
             # Increment index.
             i = i + self._bytes_per_sample
@@ -105,3 +126,6 @@ class Stream:
 
     def close(self) -> None:
         self._stream.close()
+
+    def set_volume(self, new_volume):
+        self._volume = new_volume
