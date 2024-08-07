@@ -1,10 +1,8 @@
 import math
 
-import matplotlib
-import matplotlib.pyplot as plt
-
 
 class SineWaveGenerator:
+    # TODO min max default
     def __init__(self,
                  sampling_frequency: int,
                  sine_wave_frequency: int) -> None:
@@ -35,6 +33,16 @@ class SineWaveGenerator:
             sine_wave.append(sine_wave_point)
         return sine_wave
     
+    def get_sine_wave_point(self) -> float:
+        sine_wave_point: float = self._sine_wave[self._current_sample_index]
+        
+        self._current_sample_index = self._current_sample_index + 1
+        if (self._current_sample_index
+            >= self._number_of_samples_in_sine_wave_period):
+            self._current_sample_index = 0
+
+        return sine_wave_point
+    # TODO mutex, проверка как в параметрах
     def set_sine_wave_frequency(self,
                                 sine_wave_frequency: int) -> None:
         # Check arguments.
@@ -51,33 +59,3 @@ class SineWaveGenerator:
         self._current_sample_index = 0
 
         self._sine_wave = self._generate_sine_wave()
-
-    def get_sine_wave_point(self) -> float:
-        sine_wave_point: float = self._sine_wave[self._current_sample_index]
-        
-        self._current_sample_index = self._current_sample_index + 1
-        if (self._current_sample_index
-            >= self._number_of_samples_in_sine_wave_period):
-            self._current_sample_index = 0
-
-        return sine_wave_point
-
-    def plot_sine_wave(self,
-                       time_s: float) -> None:
-        # Check arguments.
-        if time_s < 0:
-            raise ValueError("time_s must be >= 0.")
-
-        total_number_of_samples: int = int(
-            time_s / (1 / self._sampling_frequency))
-        sine_wave: list[float] = []
-
-        for i in range(0, total_number_of_samples, 1):
-            sine_wave_point: float = self.get_sine_wave_point()
-            sine_wave.append(sine_wave_point)
-
-        figure: matplotlib.figure.Figure = plt.figure()
-        axes: matplotlib.axes.Axes = figure.add_subplot(1, 1, 1)
-        axes.plot(sine_wave)
-        plt.show()
-        plt.close(fig=figure)

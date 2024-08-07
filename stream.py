@@ -7,49 +7,46 @@ import pyaudio
 from noise_generator import NoiseGenerator
 from ring_modulator import RingModulator
 from sine_wave_generator import SineWaveGenerator
+from noise_generator import NoiseGenerator
 
 
 class Stream:
     def __init__(self,
-                 pyaudio_object: pyaudio.PyAudio,
-                 format_of_sample,
-                 number_of_channels: int,
                  samples_per_buffer: int,
                  sampling_frequency: int,
                  sine_wave_generator: SineWaveGenerator,
-                 noise_generator: NoiseGenerator,
                  add_noise: bool,
                  multithread_queue1: queue.Queue,
                  multithread_queue2: queue.Queue,
-                 multithread_queue3: queue.Queue) -> None:
+                 multithread_queue3: queue.Queue,
+                 volume) -> None:
         super().__init__()
 
         # Check arguments.
-        if ((number_of_channels <= 0) or
+        if (
             # (samples_per_buffer <= 0) or
             (sampling_frequency <= 0)):
             raise ValueError("Arguments must be > 0.")
 
-        self._pyaudio_object = pyaudio_object
-        self._format_of_sample = format_of_sample
+        self._pyaudio_object = pyaudio.PyAudio()
+        self._format_of_sample = pyaudio.paFloat32
         self._bytes_per_sample = pyaudio.get_sample_size(self._format_of_sample)
-        self._number_of_channels: int = number_of_channels
+        self._number_of_channels: int = 1
         self._samples_per_buffer: int = samples_per_buffer
         self._sampling_frequency: int = sampling_frequency
         self._sine_wave_generator: SineWaveGenerator = sine_wave_generator
-        self._noise_generator: NoiseGenerator = noise_generator
         self._add_noise: bool = add_noise
         self._multithread_queue1 = multithread_queue1
         self._multithread_queue2 = multithread_queue2
         self._multithread_queue3 = multithread_queue3
-        self._volume = 1
+        self._volume = volume
 
         self._stream: pyaudio.PyAudio.Stream = self._pyaudio_object.open(
             input=True,
             output=True,
             rate=sampling_frequency,
-            format=format_of_sample,
-            channels=number_of_channels,
+            format=self._format_of_sample,
+            channels=self._number_of_channels,
             frames_per_buffer=samples_per_buffer,
             stream_callback=self._callback)
         # TODO
@@ -90,7 +87,7 @@ class Stream:
             # Add noise.
             modulated_output_with_noise: float = 0.0
             if self._add_noise is True:
-                noise_point: float = self._noise_generator.get_noise_point()
+                noise_point: float = NoiseGenerator.get_noise_point()
                 modulated_output_with_noise = modulated_output + noise_point
             else:
                 modulated_output_with_noise = modulated_output
@@ -126,6 +123,7 @@ class Stream:
 
     def close(self) -> None:
         self._stream.close()
+        self._pyaudio_object.terminate()
 
     def set_volume(self, new_volume):
         self._volume = new_volume

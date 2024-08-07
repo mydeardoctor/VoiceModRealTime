@@ -1,5 +1,6 @@
 import argparse
 import collections
+import json
 import queue
 import struct
 import time
@@ -8,6 +9,7 @@ import threading
 import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
+# from networkx import volume
 import numpy as np
 import pyaudio
 
@@ -15,6 +17,7 @@ from noise_generator import NoiseGenerator
 from ring_modulator import RingModulator
 from sine_wave_generator import SineWaveGenerator
 from stream import Stream
+from parameters import Parameters
 
 
 # TODO
@@ -23,7 +26,7 @@ from stream import Stream
 # Check arguments for None. Exceptions.
 # Limit amplitude to 1.
 # Размер буфера, latency. https://www.portaudio.com/docs/latency.html
-# убрать matplotlib
+# убрать matplotlib для raspberry
 # requirements.txt
 
 # cli interface. громкость, частота модуляции
@@ -42,109 +45,100 @@ from stream import Stream
 
 # ГРОМКОСТЬ:
 # Без модуляции звук такой же громкости, как и виндоусовский диктофон. Но в каком диапазоне аудио? Построить в матплотлибе, чтобы узнать диапазон.ГРОМКОСТЬ
-# Почему модуляция тише? Построить матплотлибе.
+# Почему модуляция тише? Построить матплотлибе. Потому что модулирующая синусоида часто равна нулю
 
 
 # Implement volume change menu
+# Подписать графики
+# подобрать частоту синусоиды
+# добавить в меню add_noise
 
 
-
+index = 0
 
 def main():
-    # TODO parser
-    # parser = argparse.ArgumentParser(prog="PROGRAM_NAME",
-    #                                  description="DESCRIPTION",
-    #                                  epilog="EPILOG")
-    # parser.add_argument("-f", "--frequency", action="store", metavar="FREQ", default=48000, help="HELP FREQ", required=False)
-    # parser.add_argument("-n", "--noise", action="store_false", default=True, help="NOISE OFF", required=False)
-    # namespace: argparse.Namespace = parser.parse_args() #Exception
-    # print(namespace)
+    parameters: Parameters = Parameters()
 
-
-
+    # TODO
     SAMPLING_FREQUENCY: int = 48000
-    SINE_WAVE_FREQUENCY: int = 220#TODO 230 240 
-    FORMAT_OF_SAMPLE = pyaudio.paFloat32
-    NUMBER_OF_CHANNELS: int = 1
-    SAMPLES_PER_BUFFER: int = 1024 #TODO set to zero
-    ADD_NOISE: bool = True
-    NOISE_DIVIDER: int = 100000
-
-
+    SAMPLES_PER_BUFFER: int = 1024 #20ms
+    UPDATE_INTERVAL_SAMPLES: int = SAMPLES_PER_BUFFER * 2
+    UPDATE_INTERVAL_TIME_S = 1/SAMPLING_FREQUENCY * UPDATE_INTERVAL_SAMPLES
+    UPDATE_INTERVAL_TIME_MS = UPDATE_INTERVAL_TIME_S * 1000
+    PLOT_TIME_WINDOW_SAMPLES = UPDATE_INTERVAL_SAMPLES * 1
+    MULTITHREAD_QUEUE_SAMPLES: int = PLOT_TIME_WINDOW_SAMPLES * 2
 
 
     sine_wave_generator: SineWaveGenerator = SineWaveGenerator(
         sampling_frequency=SAMPLING_FREQUENCY,
-        sine_wave_frequency=SINE_WAVE_FREQUENCY)
-    # sine_wave_generator.plot_sine_wave(time_s=1/SINE_WAVE_FREQUENCY)
+        sine_wave_frequency=parameters.frequency)
 
-    noise_generator: NoiseGenerator = NoiseGenerator(divider=NOISE_DIVIDER)
 
-    multithread_queue: queue.Queue = queue.Queue(maxsize=SAMPLES_PER_BUFFER*4*40) #TODO
-    multithread_queue1: queue.Queue = queue.Queue(maxsize=SAMPLES_PER_BUFFER*4*40)
-    multithread_queue2: queue.Queue = queue.Queue(maxsize=SAMPLES_PER_BUFFER*4*40)
-    multithread_queue3: queue.Queue = queue.Queue(maxsize=SAMPLES_PER_BUFFER*4*40)
+    # multithread_queue: queue.Queue = queue.Queue(maxsize=SAMPLES_PER_BUFFER*4*40) #TODO
+    multithread_queue1: queue.Queue = queue.Queue(maxsize=MULTITHREAD_QUEUE_SAMPLES)
+    multithread_queue2: queue.Queue = queue.Queue(maxsize=MULTITHREAD_QUEUE_SAMPLES)
+    multithread_queue3: queue.Queue = queue.Queue(maxsize=MULTITHREAD_QUEUE_SAMPLES)
 
-    pyaudio_object: pyaudio.PyAudio = pyaudio.PyAudio()
     stream: Stream = Stream(
-        pyaudio_object=pyaudio_object,
-        format_of_sample = FORMAT_OF_SAMPLE,
-        number_of_channels = NUMBER_OF_CHANNELS,
         samples_per_buffer=SAMPLES_PER_BUFFER,
         sampling_frequency = SAMPLING_FREQUENCY,
         sine_wave_generator=sine_wave_generator,
-        noise_generator=noise_generator,
-        add_noise=ADD_NOISE,
+        add_noise=parameters.add_noise,
         multithread_queue1=multithread_queue1,
         multithread_queue2=multithread_queue2,
-        multithread_queue3=multithread_queue3)
+        multithread_queue3=multithread_queue3,
+        volume=parameters.volume)
     
 
     # matplotlib
     # Create the figure and axes for plotting
     fig, ax = plt.subplots()
-    x = np.arange(0, SAMPLES_PER_BUFFER*4)
-    line1, = ax.plot(x, np.random.rand(SAMPLES_PER_BUFFER*4))
-    line2, = ax.plot(x, np.random.rand(SAMPLES_PER_BUFFER*4))
-    line3, = ax.plot(x, np.random.rand(SAMPLES_PER_BUFFER*4))
+    x = np.arange(0, PLOT_TIME_WINDOW_SAMPLES)
+    line1, = ax.plot(x, [0]*PLOT_TIME_WINDOW_SAMPLES)
+    line2, = ax.plot(x, [0]*PLOT_TIME_WINDOW_SAMPLES)
+    line3, = ax.plot(x, [0]*PLOT_TIME_WINDOW_SAMPLES)
     ax.set_ylim(-1, 1)  # Set y-axis limits to fit float32 audio data
     # ax[1].set_ylim(-1, 1)  # Set y-axis limits to fit float32 audio data
     # ax[2].set_ylim(-1, 1)  # Set y-axis limits to fit float32 audio data
     # Create animation
-    def update_plot(frame):
-        data_input = []
-        data_sine = []
-        data_modulated = []
-        for i in range(0, SAMPLES_PER_BUFFER*4, 1):
-            try:
-                data_input_point = multithread_queue1.get(block=True)
-            except BaseException as e:
-                data_input_point = 0
-            finally:
-                data_input.append(data_input_point)
-            try:
-                data_sine_point = multithread_queue2.get(block=True)
-            except BaseException as e:
-                data_sine_point = 0
-            finally:
-                data_sine.append(data_sine_point)
-            try:
-                data_modulated_point = multithread_queue3.get(block=True)
-            except BaseException as e:
-                data_modulated_point = 0
-            finally:
-                data_modulated.append(data_modulated_point)
+    input_circular_buffer = collections.deque([0]*PLOT_TIME_WINDOW_SAMPLES, maxlen=PLOT_TIME_WINDOW_SAMPLES)
+    sine_circular_buffer = collections.deque([0]*PLOT_TIME_WINDOW_SAMPLES, maxlen=PLOT_TIME_WINDOW_SAMPLES)
+    output_circular_buffer = collections.deque([0]*PLOT_TIME_WINDOW_SAMPLES, maxlen=PLOT_TIME_WINDOW_SAMPLES)
 
-        line1.set_ydata(data_input)
-        line2.set_ydata(data_sine)
-        line3.set_ydata(data_modulated)
+
+    def update_plot(frame):
+        for _ in range(0, UPDATE_INTERVAL_SAMPLES, 1):
+            try:
+                input_point = multithread_queue1.get(block=True)
+            except BaseException as e:
+                input_point = 0
+            try:
+                sine_point = multithread_queue2.get(block=True)
+            except BaseException as e:
+                sine_point = 0
+            try:
+                output_point = multithread_queue3.get(block=True)
+            except BaseException as e:
+                output_point = 0
+
+            input_circular_buffer.popleft()
+            sine_circular_buffer.popleft()
+            output_circular_buffer.popleft()
+
+            input_circular_buffer.append(input_point)
+            sine_circular_buffer.append(sine_point)
+            output_circular_buffer.append(output_point)
+
+        line1.set_ydata(input_circular_buffer)
+        line2.set_ydata(sine_circular_buffer)
+        line3.set_ydata(output_circular_buffer)
         return line1, line2, line3
-    ani = animation.FuncAnimation(fig, update_plot, blit=True, interval=(1/SAMPLING_FREQUENCY)*SAMPLES_PER_BUFFER*4)
+    
+    ani = animation.FuncAnimation(fig, update_plot, blit=True, interval=UPDATE_INTERVAL_TIME_MS)
     plt.show(block=False)
 
     # Main thread.
-    #TODO
-    
+       
     state = 0
     try:
         while stream.is_active() is True:          
@@ -174,6 +168,11 @@ def main():
                         stream.set_volume(new_volume=line_float)
                         print("accepted")
                         state = 0
+
+                        # TODO ОГРАНИЧЕНИЯ
+                        parameters["volume"] = line_float
+                        with open("config.json", "w") as config_file:
+                            json.dump(parameters, config_file, indent=4)
                     else:
                         state = 0
                 case 2:
@@ -186,6 +185,11 @@ def main():
                         sine_wave_generator.set_sine_wave_frequency(line_int) #TODO MUTEX
                         print("accepted")
                         state = 0
+
+                        # TODO ОГРАНИЧЕНИЯ
+                        parameters["frequency"] = line_int
+                        with open("config.json", "w") as config_file:
+                            json.dump(parameters, config_file, indent=4)
                     else:
                         state = 0
 
@@ -198,7 +202,6 @@ def main():
 
     finally:
         stream.close()
-        pyaudio_object.terminate() # TODO перенести в stream. см KWS
 
 
 if __name__ == "__main__":
