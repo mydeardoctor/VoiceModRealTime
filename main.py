@@ -59,39 +59,26 @@ index = 0
 
 def main():
     parameters: Parameters = Parameters()
-
-    # TODO
-    SAMPLING_FREQUENCY: int = 48000
-    SAMPLES_PER_BUFFER: int = 1024 #20ms
-    # MULTITHREAD_QUEUE_SAMPLES: int = PLOT_TIME_WINDOW_SAMPLES * 2
-    MULTITHREAD_QUEUE_SAMPLES: int = SAMPLES_PER_BUFFER * 4
     
-    # multithread_queue: queue.Queue = queue.Queue(maxsize=SAMPLES_PER_BUFFER*4*40) #TODO
-    # multithread_queue1: queue.Queue = queue.Queue(maxsize=MULTITHREAD_QUEUE_SAMPLES)
-    # multithread_queue2: queue.Queue = queue.Queue(maxsize=MULTITHREAD_QUEUE_SAMPLES)
-    # multithread_queue3: queue.Queue = queue.Queue(maxsize=MULTITHREAD_QUEUE_SAMPLES)
-    multithread_queue: queue.Queue = queue.Queue(maxsize=MULTITHREAD_QUEUE_SAMPLES)
-
-    plot: Plot = Plot(sampling_frequency=SAMPLING_FREQUENCY,
-                      samples_per_buffer=SAMPLES_PER_BUFFER,
-                      multithread_queue=multithread_queue)
-    
-
     sine_wave_generator: SineWaveGenerator = SineWaveGenerator(
-        sampling_frequency=SAMPLING_FREQUENCY,
-        sine_wave_frequency=parameters.frequency)
+        sampling_frequency=parameters.sampling_frequency,
+        sine_wave_frequency=parameters.sine_wave_frequency)
 
-
-  
+    multithread_queue_samples: int = parameters.samples_per_buffer * 4
+    multithread_queue: queue.Queue = queue.Queue(
+        maxsize=multithread_queue_samples)
 
     stream: Stream = Stream(
-        samples_per_buffer=SAMPLES_PER_BUFFER,
-        sampling_frequency = SAMPLING_FREQUENCY,
+        samples_per_buffer=parameters.samples_per_buffer,
+        sampling_frequency = parameters.sampling_frequency,
         sine_wave_generator=sine_wave_generator,
         add_noise=parameters.add_noise,
         multithread_queue = multithread_queue,
         volume=parameters.volume)
     
+    plot: Plot = Plot(sampling_frequency=parameters.sampling_frequency,
+                      samples_per_buffer=parameters.samples_per_buffer,
+                      multithread_queue=multithread_queue)
 
     # Main thread.
        
@@ -158,6 +145,7 @@ def main():
 
     finally:
         stream.close()
+        plot.close()
 
 
 if __name__ == "__main__":
