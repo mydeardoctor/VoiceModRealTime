@@ -16,9 +16,7 @@ class Stream:
                  sampling_frequency: int,
                  sine_wave_generator: SineWaveGenerator,
                  add_noise: bool,
-                 multithread_queue1: queue.Queue,
-                 multithread_queue2: queue.Queue,
-                 multithread_queue3: queue.Queue,
+                 multithread_queue: queue.Queue,
                  volume) -> None:
         super().__init__()
 
@@ -36,9 +34,7 @@ class Stream:
         self._sampling_frequency: int = sampling_frequency
         self._sine_wave_generator: SineWaveGenerator = sine_wave_generator
         self._add_noise: bool = add_noise
-        self._multithread_queue1 = multithread_queue1
-        self._multithread_queue2 = multithread_queue2
-        self._multithread_queue3 = multithread_queue3
+        self._multithread_queue = multithread_queue
         self._volume = volume
 
         self._stream: pyaudio.PyAudio.Stream = self._pyaudio_object.open(
@@ -105,9 +101,8 @@ class Stream:
                 output_byte_array.append(output_byte)
 
             try:
-                self._multithread_queue1.put(input_float, block=False)
-                self._multithread_queue2.put(sine_wave_point, block=False)
-                self._multithread_queue3.put(modulated_output_with_noise, block=False)
+                t = (input_float, sine_wave_point, modulated_output_with_noise)
+                self._multithread_queue.put(t, block=False)
             except BaseException as e:
                 NOP
 
