@@ -101,12 +101,11 @@ class Stream:
                 output_byte_array.append(output_byte)
 
             t = (input_float, sine_wave_point, modulated_output_with_noise)
-
             try:
                 self._multithread_queue.put(t, block=False)
-            except BaseException as e:
-                NOP
-
+            except queue.Full as e:
+                pass
+            
             # Increment index.
             i = i + self._bytes_per_sample
 

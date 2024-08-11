@@ -22,7 +22,9 @@ from plot import Plot
 
 
 # TODO
-# не ловит киборд интеррапт
+# ДЕЦЕМИРОВАТЬ ГРАФИК. Посмотреть что будет с интерраптом в очереди
+
+
 
 
 # Нарисовать графики.
@@ -71,6 +73,10 @@ def main():
     multithread_queue: queue.Queue = queue.Queue(
         maxsize=multithread_queue_samples)
 
+    plot: Plot = Plot(sampling_frequency=parameters.sampling_frequency,
+                      samples_per_buffer=parameters.samples_per_buffer,
+                      multithread_queue=multithread_queue)
+
     stream: Stream = Stream(
         samples_per_buffer=parameters.samples_per_buffer,
         sampling_frequency = parameters.sampling_frequency,
@@ -79,9 +85,7 @@ def main():
         multithread_queue = multithread_queue,
         volume=parameters.volume)
     
-    plot: Plot = Plot(sampling_frequency=parameters.sampling_frequency,
-                      samples_per_buffer=parameters.samples_per_buffer,
-                      multithread_queue=multithread_queue)
+
 
     # Main thread.
     state = 0

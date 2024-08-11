@@ -80,7 +80,7 @@ class Parameters:
                     self._volume = self._DEFAULT_VOLUME
                     load_status = False
 
-        except BaseException as e:
+        except (OSError, json.JSONDecodeError, KeyError) as e:
             print(type(e))
             print(e)
             print("ERROR! Could not load parameters from config file!")
@@ -104,7 +104,7 @@ class Parameters:
                 json.dump(parameters_to_config_file, config_file, indent=4)
                 print("Parameters are saved to config file successfully.")
 
-        except BaseException as e:
+        except OSError as e:
             print(type(e))
             print(e)
             print("ERROR! Could not save parameters to config file!")
