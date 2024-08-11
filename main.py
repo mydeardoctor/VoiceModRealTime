@@ -22,6 +22,9 @@ from plot import Plot
 
 
 # TODO
+# не ловит киборд интеррапт
+
+
 # Нарисовать графики.
 
 # Check arguments for None. Exceptions.
@@ -81,7 +84,6 @@ def main():
                       multithread_queue=multithread_queue)
 
     # Main thread.
-       
     state = 0
     try:
         while stream.is_active() is True:          
@@ -144,8 +146,9 @@ def main():
         print("Stopping main thread!")
 
     finally:
-        stream.close()
         plot.close()
+        stream.close()
+        
 
 
 if __name__ == "__main__":

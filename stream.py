@@ -100,8 +100,9 @@ class Stream:
             for output_byte in output_bytes:
                 output_byte_array.append(output_byte)
 
+            t = (input_float, sine_wave_point, modulated_output_with_noise)
+
             try:
-                t = (input_float, sine_wave_point, modulated_output_with_noise)
                 self._multithread_queue.put(t, block=False)
             except BaseException as e:
                 NOP
