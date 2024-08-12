@@ -39,7 +39,7 @@ class Stream:
         self._volume = volume
         self._mutex_volume: threading.Lock = threading.Lock()
 
-        self._stream: pyaudio.PyAudio.Stream = self._pyaudio_object.open(
+        self._stream = self._pyaudio_object.open(
             input=True,
             output=True,
             rate=sampling_frequency,
@@ -48,6 +48,7 @@ class Stream:
             frames_per_buffer=samples_per_buffer,
             stream_callback=self._callback)
         # TODO
+        print(type(self._stream))
         input_latency = self._stream.get_input_latency()
         output_latency = self._stream.get_output_latency()
         total_latency = input_latency + output_latency
@@ -86,7 +87,7 @@ class Stream:
             
             # Modulate.
             modulated_output: float = RingModulator.modulate(
-                input_signal_point=input_float,
+                input_voice_point=input_float,
                 sine_wave_point=sine_wave_point) #TODO
 
             # Add noise.

@@ -3,19 +3,20 @@ import threading
 
 
 class SineWaveGenerator:
-    # TODO min max default
     def __init__(self,
                  sampling_frequency: int,
                  sine_wave_frequency: int) -> None:
         super().__init__()
 
         # Check arguments.
-        if (sampling_frequency <= 0) or (sine_wave_frequency <= 0):
-            raise ValueError("Arguments must be > 0.")
-        
-        if sine_wave_frequency >= sampling_frequency/2:
-            raise ValueError(
-                "sine_wave_frequency must be < sampling_frequency/2.")
+        if((sampling_frequency is None) or
+           (not isinstance(sampling_frequency, int)) or
+           (sampling_frequency <= 0) or
+           (sine_wave_frequency is None) or
+           (not isinstance(sine_wave_frequency, int)) or
+           (sine_wave_frequency <= 0) or
+           (sine_wave_frequency >= sampling_frequency/2)):
+            raise ValueError("ERROR! Invalid arguments!")
         
         self._mutex_sine_wave_generator: threading.Lock = threading.Lock()
 
@@ -54,19 +55,18 @@ class SineWaveGenerator:
     @property
     def sine_wave_frequency(self) -> int:
         sine_wave_frequency_copy: int = 0
-        with self._mutex_sine_wave_frequency:
+        with self._mutex_sine_wave_generator:
             sine_wave_frequency_copy = self._sine_wave_frequency
         return sine_wave_frequency_copy
 
     @sine_wave_frequency.setter
     def sine_wave_frequency(self, new_sine_wave_frequency: int) -> None:
-        # Check arguments.
-        if new_sine_wave_frequency <= 0:
-            raise ValueError("sine_wave_frequency must be > 0.")
-        
-        if new_sine_wave_frequency >= self._sampling_frequency/2:
-            raise ValueError(
-                "sine_wave_frequency must be < self._sampling_frequency/2.")
+        # Check argument.
+        if((new_sine_wave_frequency is None) or
+           (not isinstance(new_sine_wave_frequency, int)) or
+           (new_sine_wave_frequency <= 0) or
+           (new_sine_wave_frequency >= self._sampling_frequency/2)):
+            raise ValueError("ERROR! Invalid argument!")
         
         with self._mutex_sine_wave_generator:
             self._sine_wave_frequency = new_sine_wave_frequency

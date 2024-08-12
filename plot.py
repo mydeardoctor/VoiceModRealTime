@@ -1,14 +1,11 @@
-import collections
-from concurrent.futures import thread
 import queue
 import threading
 
-import matplotlib
 import matplotlib.animation
+import matplotlib.axes
+import matplotlib.figure
+import matplotlib.lines
 import matplotlib.pyplot as plt
-
-
-# pause with lock
 
 
 class Plot:
@@ -18,94 +15,104 @@ class Plot:
                  multithread_queue: queue.Queue) -> None:
         super().__init__()
         
-        # TODO Check parameters
+        # Check arguments.
+        if((sampling_frequency is None) or
+           (not isinstance(sampling_frequency, int)) or
+           (sampling_frequency <= 0) or
+           (samples_per_buffer is None) or
+           (not isinstance(samples_per_buffer, int)) or
+           (samples_per_buffer <= 0) or
+           (multithread_queue is None) or
+           (not isinstance(multithread_queue, queue.Queue))):
+            raise ValueError("ERROR! Invalid arguments!")
+
         self._samples_per_update_interval: int = samples_per_buffer
-        sample_time_s: float = 1 / sampling_frequency
-        update_interval_time_ms: int = (sample_time_s * self._samples_per_update_interval * 1000)
+        sample_time_ms: float = 1 / sampling_frequency * 1000
+        self._update_interval_ms: int = int(sample_time_ms
+                                            * self._samples_per_update_interval)
 
         self._multithread_queue: queue.Queue = multithread_queue
 
-        # TODO подписи
         self._figure: matplotlib.figure.Figure = plt.figure()
         self._axes: matplotlib.axes.Axes = self._figure.add_subplot()
-        self._axes.set_xlim(left=0, right=self._samples_per_update_interval - 1)
-        self._axes.set_ylim(bottom=-1, top=1)
-        self._axes.set_title(label="Audio signals")
-        self._axes.set_xlabel(xlabel="Points")
-        self._axes.set_ylabel(ylabel="Float value")    
-
-        x = [i for i in range(0, self._samples_per_update_interval, 1)]
-        y = [0] * self._samples_per_update_interval
 
         self._input_voice_line: matplotlib.lines.Line2D
         self._sine_wave_line: matplotlib.lines.Line2D
         self._modulated_voice_line: matplotlib.lines.Line2D
-
-        self._input_voice_line, *other_lines = self._axes.plot([], [], label="Input voice")
-        self._sine_wave_line, *other_lines = self._axes.plot([], [], label="Sine wave")
-        self._modulated_voice_line, *other_lines = self._axes.plot([], [], label="Modulated voice")
+        self._input_voice_line, *other_lines = self._axes.plot(
+            [], [], label="Input voice")
+        self._sine_wave_line, *other_lines = self._axes.plot(
+            [], [], label="Sine wave")
+        self._modulated_voice_line, *other_lines = self._axes.plot(
+            [], [], label="Modulated voice")
+        
+        self._axes.set_xlim(left=0, right=self._samples_per_update_interval - 1)
+        self._axes.set_ylim(bottom=-1, top=1)
+        self._axes.set_title(label="Audio signals")
+        self._axes.set_xlabel(xlabel="Points")
+        self._axes.set_ylabel(ylabel="Float value")  
         self._axes.legend(loc="lower left")
 
-        self._mutex_running: threading.Lock = threading.Lock()
         self._running: bool = True
+        self._mutex_running: threading.Lock = threading.Lock()
 
-        self._anim: matplotlib.animation.FuncAnimation = matplotlib.animation.FuncAnimation(
-            fig=self._figure,
-            func=self._update,
-            frames=self._get_frame,
-            init_func=self._init_animation,
-            interval=update_interval_time_ms,
-            repeat=False,
-            cache_frame_data=False)
+        self._animation: matplotlib.animation.FuncAnimation = \
+            matplotlib.animation.FuncAnimation(
+                fig=self._figure,
+                func=self._update_animation,
+                frames=self._get_frame_for_animation,
+                init_func=self._init_animation,
+                interval=self._update_interval_ms,
+                repeat=False,
+                cache_frame_data=False)
         plt.show(block=False)
 
-    # TODO how to stop animation and this infinite generator
     def _init_animation(self):
         x = [i for i in range(0, self._samples_per_update_interval, 1)]
-        y = [0] * self._samples_per_update_interval
+        y = [0.0] * self._samples_per_update_interval
 
         self._input_voice_line.set_data(x, y)
         self._sine_wave_line.set_data(x, y)
         self._modulated_voice_line.set_data(x, y)
 
-        return [self._input_voice_line,
+        return (self._input_voice_line,
                 self._sine_wave_line,
-                self._modulated_voice_line]
+                self._modulated_voice_line)
 
-    def _get_frame(self):
-        in1_buf: list[float] = []
-        in2_buf: list[float] = []
-        in3_buf: list[float] = []
+    def _get_frame_for_animation(self):
+        input_voice_buffer: list[float] = []
+        sine_wave_buffer: list[float] = []
+        modulated_voice_buffer: list[float] = []
 
+        while self.running is True:
+            input_voice_buffer.clear()
+            sine_wave_buffer.clear()
+            modulated_voice_buffer.clear()
 
-        while True:
-            running_copy: bool = self.running
-            
-            if running_copy is True:
-                in1_buf.clear()
-                in2_buf.clear()
-                in3_buf.clear()
-                for _ in range(0, self._samples_per_update_interval, 1):
-                    in1: float = 0
-                    in2: float = 0
-                    in3: float = 0
-                    # try
-                    in1, in2, in3 = self._multithread_queue.get(block=True)
-                    # base exception
-                    in1_buf.append(in1)
-                    in2_buf.append(in2)
-                    in3_buf.append(in3)
-                in1_buf_copy: list[float] = in1_buf.copy()
-                in2_buf_copy: list[float] = in2_buf.copy()
-                in3_buf_copy: list[float] = in3_buf.copy()
-                yield (in1_buf_copy, in2_buf_copy, in3_buf_copy)
+            for _ in range(0, self._samples_per_update_interval, 1):
+                input_voice_point: float = 0
+                sine_wave_point: float = 0
+                modulated_voice_point: float = 0
+
+                input_voice_point, sine_wave_point, modulated_voice_point = \
+                    self._multithread_queue.get(block=True)
                 
-            else:
-                break
+                input_voice_buffer.append(input_voice_point)
+                sine_wave_buffer.append(sine_wave_point)
+                modulated_voice_buffer.append(modulated_voice_point)
 
-    def _update(self,
-                frame,
-                *fargs):
+            input_voice_buffer_copy: list[float] = \
+                input_voice_buffer.copy()
+            sine_wave_buffer_copy: list[float] = \
+                sine_wave_buffer.copy()
+            modulated_voice_buffer_copy: list[float] = \
+                modulated_voice_buffer.copy()
+            
+            yield (input_voice_buffer_copy,
+                   sine_wave_buffer_copy,
+                   modulated_voice_buffer_copy)
+                
+    def _update_animation(self, frame, *fargs):
         input_voice_buffer: list[float] = []
         sine_wave_buffer: list[float] = []
         modulated_voice_buffer: list[float] = []
@@ -116,7 +123,17 @@ class Plot:
         self._sine_wave_line.set_ydata(sine_wave_buffer)
         self._modulated_voice_line.set_ydata(modulated_voice_buffer)
 
-        return self._input_voice_line, self._sine_wave_line, self._modulated_voice_line
+        return (self._input_voice_line,
+                self._sine_wave_line,
+                self._modulated_voice_line)
+    
+    def close(self) -> None:            
+        self.running = False
+        try:
+            self._animation.pause()
+        except AttributeError as e:
+            pass
+        plt.close(fig=self._figure)
 
     @property
     def running(self) -> bool:
@@ -127,10 +144,10 @@ class Plot:
 
     @running.setter
     def running(self, new_running: bool) -> None:
+        # Check argument.
+        if((new_running is None) or
+           (not isinstance(new_running, bool))):
+            raise ValueError("ERROR! Invalid argument!")
+
         with self._mutex_running:
             self._running = new_running
-    
-    def close(self) -> None:
-        self.running = False
-        self._anim.pause()
-        plt.close(fig=self._figure)

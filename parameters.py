@@ -6,7 +6,7 @@ class Parameters:
         super().__init__()
 
         self._SAMPLING_FREQUENCY: int = 48000
-        self._SAMPLES_PER_BUFFER: int = 1024 # 20 ms
+        self._SAMPLES_PER_BUFFER: int = 1024 # 21.33 ms
 
         self._MIN_SINE_WAVE_FREQUENCY: int = 1
         self._MIN_VOLUME: float = 1.0
@@ -51,6 +51,8 @@ class Parameters:
                 print("Parameters are loaded from config file successfully.")
                 
                 # Check parameters.
+                result: bool = True
+
                 result = self._check_sine_wave_frequency(
                     sine_wave_frequency=sine_wave_frequency_from_config_file)
                 if result is True:
@@ -71,7 +73,7 @@ class Parameters:
                     self._add_noise = self._DEFAULT_ADD_NOISE
                     load_status = False
 
-                result: bool = self._check_volume(
+                result = self._check_volume(
                     volume=volume_from_config_file)
                 if result is True:
                     self._volume = volume_from_config_file
@@ -103,7 +105,6 @@ class Parameters:
             with open(self._CONFIG_FILE_NAME, "w") as config_file:
                 json.dump(parameters_to_config_file, config_file, indent=4)
                 print("Parameters are saved to config file successfully.")
-
         except OSError as e:
             print(type(e))
             print(e)
@@ -160,8 +161,9 @@ class Parameters:
         return self._sine_wave_frequency
     
     @sine_wave_frequency.setter
-    def sine_wave_frequency(self, new_sine_wave_frequency: int) -> None:
-        result: bool = self._check_sine_wave_frequency(new_sine_wave_frequency)
+    def sine_wave_frequency(self, new_sine_wave_frequency) -> None:
+        result: bool = self._check_sine_wave_frequency(
+            sine_wave_frequency=new_sine_wave_frequency)
         if result is True:
             self._sine_wave_frequency = new_sine_wave_frequency
         else:
@@ -175,7 +177,7 @@ class Parameters:
     
     @add_noise.setter
     def add_noise(self, new_add_noise) -> None:
-        result: bool = self._check_add_noise(new_add_noise)
+        result: bool = self._check_add_noise(add_noise=new_add_noise)
         if result is True:
             self._add_noise = new_add_noise
         else:
@@ -188,8 +190,8 @@ class Parameters:
         return self._volume
     
     @volume.setter
-    def volume(self, new_volume: float) -> None:
-        result: bool = self._check_volume(new_volume)
+    def volume(self, new_volume) -> None:
+        result: bool = self._check_volume(volume=new_volume)
         if result is True:
             self._volume = new_volume
         else:

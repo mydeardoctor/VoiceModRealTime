@@ -1,7 +1,4 @@
-from email.policy import default
-import json
 import queue
-import time
 
 from menu_state import MenuState
 from parameters import Parameters
@@ -11,20 +8,24 @@ from stream import Stream
 
 
 # TODO
-# Размер буфера, latency. https://www.portaudio.com/docs/latency.html
+# TODOs
+# Problems
+
+# main, stream
 
 # Рефакторинг.
-# Docstrings for modules, classes, functions. PEP257. Document exceptions raised
-# Check arguments for min max. for None. Exceptions.
+# Check arguments for None, basic limits. Exceptions.
 # Properties.
-# TODOs
+# Docstrings for modules, classes, functions. PEP257. Document exceptions raised
 
+# Размер буфера, latency. https://www.portaudio.com/docs/latency.html
 # подобрать частоту синусоиды
 # raspberry убрать matplotlib
 # подключиться к распберри по телефону
 
 # README.md
 # requirements.txt
+# gitignore
 
 
 def main():
