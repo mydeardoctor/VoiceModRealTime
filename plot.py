@@ -4,6 +4,7 @@ import queue
 import threading
 
 import matplotlib
+import matplotlib.animation
 import matplotlib.pyplot as plt
 
 
@@ -18,11 +19,9 @@ class Plot:
         super().__init__()
         
         # TODO Check parameters
+        self._samples_per_update_interval: int = samples_per_buffer
         sample_time_s: float = 1 / sampling_frequency
-        self._samples_per_update_interval: int = samples_per_buffer * 2
-        update_interval_time_s: float = (sample_time_s
-                                        * self._samples_per_update_interval)
-        update_interval_time_ms: int = int(update_interval_time_s * 1000)
+        update_interval_time_ms: int = (sample_time_s * self._samples_per_update_interval * 1000)
 
         self._multithread_queue: queue.Queue = multithread_queue
 
@@ -31,6 +30,9 @@ class Plot:
         self._axes: matplotlib.axes.Axes = self._figure.add_subplot()
         self._axes.set_xlim(left=0, right=self._samples_per_update_interval - 1)
         self._axes.set_ylim(bottom=-1, top=1)
+        self._axes.set_title(label="Audio signals")
+        self._axes.set_xlabel(xlabel="Points")
+        self._axes.set_ylabel(ylabel="Float value")    
 
         x = [i for i in range(0, self._samples_per_update_interval, 1)]
         y = [0] * self._samples_per_update_interval
@@ -39,9 +41,10 @@ class Plot:
         self._sine_wave_line: matplotlib.lines.Line2D
         self._modulated_voice_line: matplotlib.lines.Line2D
 
-        self._input_voice_line, *other_lines = self._axes.plot([], [])
-        self._sine_wave_line, *other_lines = self._axes.plot([], [])
-        self._modulated_voice_line, *other_lines = self._axes.plot([], [])
+        self._input_voice_line, *other_lines = self._axes.plot([], [], label="Input voice")
+        self._sine_wave_line, *other_lines = self._axes.plot([], [], label="Sine wave")
+        self._modulated_voice_line, *other_lines = self._axes.plot([], [], label="Modulated voice")
+        self._axes.legend(loc="lower left")
 
         self._mutex_running: threading.Lock = threading.Lock()
         self._running: bool = True
@@ -82,7 +85,7 @@ class Plot:
                 in1_buf.clear()
                 in2_buf.clear()
                 in3_buf.clear()
-                for _ in range(0, 2048, 1):
+                for _ in range(0, self._samples_per_update_interval, 1):
                     in1: float = 0
                     in2: float = 0
                     in3: float = 0

@@ -1,66 +1,31 @@
-import argparse
-import collections
+from email.policy import default
 import json
 import queue
-import struct
 import time
-import threading
 
-import matplotlib
-import matplotlib.pyplot as plt
-import matplotlib.animation as animation
-# from networkx import volume
-import numpy as np
-import pyaudio
-
-from noise_generator import NoiseGenerator
-from ring_modulator import RingModulator
-from sine_wave_generator import SineWaveGenerator
-from stream import Stream
+from menu_state import MenuState
 from parameters import Parameters
 from plot import Plot
+from sine_wave_generator import SineWaveGenerator
+from stream import Stream
 
 
 # TODO
-# ДЕЦЕМИРОВАТЬ ГРАФИК. Посмотреть что будет с интерраптом в очереди
-
-
-
-
-# Нарисовать графики.
-
-# Check arguments for None. Exceptions.
-# Limit amplitude to 1.
 # Размер буфера, latency. https://www.portaudio.com/docs/latency.html
-# убрать matplotlib для raspberry
-# requirements.txt
 
-# cli interface. громкость, частота модуляции
-# main thread ждёт частоту, громкость. мьютексы
-# Громкость выше.
-
-# raspberry не вывозит, убрать всё лишнее, квантизировать. не считать синусоиду. pyaudio через callbacks
 # Рефакторинг.
 # Docstrings for modules, classes, functions. PEP257. Document exceptions raised
+# Check arguments for min max. for None. Exceptions.
+# Properties.
+# TODOs
 
-# Подобрать частоту модуляции.
+# подобрать частоту синусоиды
+# raspberry убрать matplotlib
 # подключиться к распберри по телефону
 
 # README.md
+# requirements.txt
 
-
-# ГРОМКОСТЬ:
-# Без модуляции звук такой же громкости, как и виндоусовский диктофон. Но в каком диапазоне аудио? Построить в матплотлибе, чтобы узнать диапазон.ГРОМКОСТЬ
-# Почему модуляция тише? Построить матплотлибе. Потому что модулирующая синусоида часто равна нулю
-
-
-# Implement volume change menu
-# Подписать графики
-# подобрать частоту синусоиды
-# добавить в меню add_noise
-
-
-index = 0
 
 def main():
     parameters: Parameters = Parameters()
@@ -85,64 +50,81 @@ def main():
         multithread_queue = multithread_queue,
         volume=parameters.volume)
     
-
-
     # Main thread.
-    state = 0
+    menu_state: MenuState = MenuState.MAIN
     try:
         while stream.is_active() is True:          
-
-            match state:
-                case 0:
-                    print("To change volume enter 1.")
-                    print("To change sine wave frequency enter 2.")
-                    print("Enter: ")
+            match menu_state:
+                case MenuState.MAIN:
+                    print("Enter 1 to change sine wave frequency.")
+                    print("Enter 2 to add/remove noise.")
+                    print("Enter 3 to change volume.")
+                    print("Enter 4 to exit. ")
                     line: str = input()
-                    line_int: int = int(line)
-                    if line_int == 1:
-                        state = 1
-                    elif line_int == 2:
-                        state = 2
-                    else:
-                        print("INVALID NUMBER.")
-                        state = 0
-                case 1:
-                    print("Enter new volume.")
-                    print("Enter 0 to return.")
-                    print("Enter: ")
+
+                    number: int = 0
+                    try:
+                        number = int(line)
+                    except ValueError as e:
+                        number = 0
+
+                    match number:
+                        case 1:
+                            menu_state = MenuState.CHANGING_SINE_WAVE_FREQUENCY
+                        case 2:
+                            menu_state = MenuState.CHANGING_NOISE
+                        case 3:
+                            menu_state = MenuState.CHANGING_VOLUME
+                        case 4:
+                            break
+                        case _:
+                            print("ERROR! Invalid number!")
+                            menu_state = MenuState.MAIN
+
+                case MenuState.CHANGING_SINE_WAVE_FREQUENCY:
+                    print("Enter new sine wave frequency: ", end="")
                     line: str = input()
-                    #TODO сделать тут обработку эксепшнов когда я ввожу строку или говно. и в остальных местах в меню
-                    line_float: float = float(line)
-                    if line_float != 0:
-                        stream.set_volume(new_volume=line_float)
-                        print("accepted")
-                        state = 0
+                    
+                    new_sine_wave_frequency: int = 0
+                    try:
+                        new_sine_wave_frequency = int(line)
+                    except ValueError as e:
+                        new_sine_wave_frequency = 0
 
-                        # TODO ОГРАНИЧЕНИЯ
-                        parameters["volume"] = line_float
-                        with open("config.json", "w") as config_file:
-                            json.dump(parameters, config_file, indent=4)
-                    else:
-                        state = 0
-                case 2:
-                    print("Enter new sine wave frequency.")
-                    print("Enter 0 to return.")
-                    print("Enter: ")
+                    parameters.sine_wave_frequency = new_sine_wave_frequency
+                    sine_wave_generator.sine_wave_frequency = \
+                        parameters.sine_wave_frequency
+                    menu_state = MenuState.MAIN
+
+                case MenuState.CHANGING_NOISE:
+                    print("Enter \"true\" to add noise. "
+                          "Enter \"false\" to remove noise: ", end="")
                     line: str = input()
-                    line_int: int = int(line)
-                    if line_int != 0:
-                        sine_wave_generator.set_sine_wave_frequency(line_int) #TODO MUTEX
-                        print("accepted")
-                        state = 0
+                    new_add_noise = None
+                    if ((line == "true") or (line == "True")):
+                        new_add_noise = True
+                    elif ((line == "false") or (line == "False")):
+                        new_add_noise = False
+                    parameters.add_noise = new_add_noise
+                    stream.add_noise = parameters.add_noise
+                    menu_state = MenuState.MAIN
 
-                        # TODO ОГРАНИЧЕНИЯ
-                        parameters["frequency"] = line_int
-                        with open("config.json", "w") as config_file:
-                            json.dump(parameters, config_file, indent=4)
-                    else:
-                        state = 0
+                case MenuState.CHANGING_VOLUME:
+                    print("Enter new volume: ", end="")
+                    line: str = input()
+                    
+                    new_volume: float = 0
+                    try:
+                        new_volume = float(line)
+                    except ValueError as e:
+                        new_volume = 0
+                    
+                    parameters.volume = new_volume
+                    stream.volume = parameters.volume
+                    menu_state = MenuState.MAIN
 
-            time.sleep(0.1)
+                case _:
+                    menu_state = MenuState.MAIN
 
     except BaseException as e:
         print(type(e))
@@ -153,7 +135,6 @@ def main():
         plot.close()
         stream.close()
         
-
 
 if __name__ == "__main__":
     main()

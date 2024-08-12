@@ -1,6 +1,6 @@
 import queue
 import struct
-from telnetlib import NOP
+import threading
 
 import pyaudio
 
@@ -34,8 +34,10 @@ class Stream:
         self._sampling_frequency: int = sampling_frequency
         self._sine_wave_generator: SineWaveGenerator = sine_wave_generator
         self._add_noise: bool = add_noise
+        self._mutex_add_noise: threading.Lock = threading.Lock()
         self._multithread_queue = multithread_queue
         self._volume = volume
+        self._mutex_volume: threading.Lock = threading.Lock()
 
         self._stream: pyaudio.PyAudio.Stream = self._pyaudio_object.open(
             input=True,
@@ -46,8 +48,12 @@ class Stream:
             frames_per_buffer=samples_per_buffer,
             stream_callback=self._callback)
         # TODO
-        print(f"input latency = {self._stream.get_input_latency()}")
-        print(f"output latency = {self._stream.get_output_latency()}")
+        input_latency = self._stream.get_input_latency()
+        output_latency = self._stream.get_output_latency()
+        total_latency = input_latency + output_latency
+        print(f"Input latency = {input_latency}")
+        print(f"Output latency = {output_latency}")
+        print(f"Total latency = {total_latency}")
     
     def _callback(self,
                   in_data: bytes,
@@ -69,8 +75,11 @@ class Stream:
         while (i + self._bytes_per_sample - 1) <= (len(in_data) - 1):
             # Get sample.
             input_bytes: bytes = in_data[i:i + self._bytes_per_sample]
-            input_float: float = (struct.unpack("f", input_bytes))[0] * self._volume #TODO
+            input_float: float = (struct.unpack("f", input_bytes))[0]
           
+            # Amplify.
+            input_float = input_float * self.volume
+
             # Get sine wave point.
             sine_wave_point: float = \
                 self._sine_wave_generator.get_sine_wave_point()
@@ -82,7 +91,7 @@ class Stream:
 
             # Add noise.
             modulated_output_with_noise: float = 0.0
-            if self._add_noise is True:
+            if self.add_noise is True:
                 noise_point: float = NoiseGenerator.get_noise_point()
                 modulated_output_with_noise = modulated_output + noise_point
             else:
@@ -120,5 +129,26 @@ class Stream:
         self._stream.close()
         self._pyaudio_object.terminate()
 
-    def set_volume(self, new_volume):
-        self._volume = new_volume
+    @property
+    def add_noise(self) -> bool:
+        add_noise_copy: bool = True
+        with self._mutex_add_noise:
+            add_noise_copy = self._add_noise
+        return add_noise_copy
+    
+    @add_noise.setter
+    def add_noise(self, new_add_noise: bool) -> None:
+        with self._mutex_add_noise:
+            self._add_noise = new_add_noise
+
+    @property
+    def volume(self) -> float:
+        volume_copy: float = 0
+        with self._mutex_volume:
+            volume_copy = self._volume
+        return volume_copy
+
+    @volume.setter
+    def volume(self, new_volume: float) -> None:
+        with self._mutex_volume:
+            self._volume = new_volume
