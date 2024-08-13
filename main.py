@@ -11,17 +11,15 @@ from stream import Stream
 # TODOs
 # Problems
 
-# main, stream
-
-# Рефакторинг.
-# Check arguments for None, basic limits. Exceptions.
-# Properties.
+# pylance
 # Docstrings for modules, classes, functions. PEP257. Document exceptions raised
 
-# Размер буфера, latency. https://www.portaudio.com/docs/latency.html
-# подобрать частоту синусоиды
+# Размер буфера, latency. https://www.portaudio.com/docs/latency.html. На распберри запускать от root, чтобы latency была меньше. You must also set PA_MIN_LATENCY_MSEC using the appropriate command for your shell.
+# https://github.com/PortAudio/portaudio/wiki/Platforms_RaspberryPi
 # raspberry убрать matplotlib
 # подключиться к распберри по телефону
+
+# подобрать частоту синусоиды
 
 # README.md
 # requirements.txt
@@ -43,13 +41,12 @@ def main():
                       samples_per_buffer=parameters.samples_per_buffer,
                       multithread_queue=multithread_queue)
 
-    stream: Stream = Stream(
-        samples_per_buffer=parameters.samples_per_buffer,
-        sampling_frequency = parameters.sampling_frequency,
-        sine_wave_generator=sine_wave_generator,
-        add_noise=parameters.add_noise,
-        multithread_queue = multithread_queue,
-        volume=parameters.volume)
+    stream: Stream = Stream(sampling_frequency=parameters.sampling_frequency,
+                            samples_per_buffer=parameters.samples_per_buffer,
+                            sine_wave_generator=sine_wave_generator,
+                            add_noise=parameters.add_noise,
+                            volume=parameters.volume,
+                            multithread_queue=multithread_queue)
     
     # Main thread.
     menu_state: MenuState = MenuState.MAIN
@@ -58,7 +55,7 @@ def main():
             match menu_state:
                 case MenuState.MAIN:
                     print("Enter 1 to change sine wave frequency.")
-                    print("Enter 2 to add/remove noise.")
+                    print("Enter 2 to add or remove noise.")
                     print("Enter 3 to change volume.")
                     print("Enter 4 to exit. ")
                     line: str = input()
@@ -95,19 +92,23 @@ def main():
                     parameters.sine_wave_frequency = new_sine_wave_frequency
                     sine_wave_generator.sine_wave_frequency = \
                         parameters.sine_wave_frequency
+                    
                     menu_state = MenuState.MAIN
 
                 case MenuState.CHANGING_NOISE:
                     print("Enter \"true\" to add noise. "
                           "Enter \"false\" to remove noise: ", end="")
                     line: str = input()
+
                     new_add_noise = None
                     if ((line == "true") or (line == "True")):
                         new_add_noise = True
                     elif ((line == "false") or (line == "False")):
                         new_add_noise = False
+
                     parameters.add_noise = new_add_noise
                     stream.add_noise = parameters.add_noise
+
                     menu_state = MenuState.MAIN
 
                 case MenuState.CHANGING_VOLUME:
@@ -122,6 +123,7 @@ def main():
                     
                     parameters.volume = new_volume
                     stream.volume = parameters.volume
+
                     menu_state = MenuState.MAIN
 
                 case _:
@@ -130,7 +132,7 @@ def main():
     except BaseException as e:
         print(type(e))
         print(e)
-        print("Stopping main thread!")
+        print("Stopping main thread.")
 
     finally:
         plot.close()
