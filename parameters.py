@@ -1,8 +1,16 @@
 import json
+from typing import Any
 
 
 class Parameters:
     def __init__(self) -> None:
+        """Initialize application parameters.
+        
+        Initialize minimum, maximum and default parameters.
+        Load current parameters from a configuration file.
+        If a configuration file is not found or is invalid,
+        save current parameters to a configuration file.
+        """
         super().__init__()
 
         self._SAMPLING_FREQUENCY: int = 48000
@@ -32,6 +40,12 @@ class Parameters:
             self._save()
 
     def _load(self) -> bool:
+        """Load current parameters from a configuration file.
+
+        Returns:
+            bool: True - operation completed successfully.
+            False - operation failed.
+        """
         load_status: bool = True
 
         try:
@@ -95,6 +109,7 @@ class Parameters:
         return load_status
 
     def _save(self) -> None:
+        """Save current parameters to a configuration file."""
         parameters_to_config_file = {
             self._SINE_WAVE_FREQUENCY_JSON_KEY:self._sine_wave_frequency,
             self._ADD_NOISE_JSON_KEY:self._add_noise,
@@ -110,7 +125,16 @@ class Parameters:
             print(e)
             print("ERROR! Could not save parameters to config file!")
 
-    def _check_sine_wave_frequency(self, sine_wave_frequency) -> bool:
+    def _check_sine_wave_frequency(self, sine_wave_frequency: Any) -> bool:
+        """Check sine wave frequency.
+
+        Args:
+            sine_wave_frequency (Any): sine wave frequency, Hz.
+
+        Returns:
+            bool: True - sine wave frequency is valid.
+            False - sine wave frequency is invalid.
+        """
         if ((sine_wave_frequency is not None) and
             (isinstance(sine_wave_frequency, int)) and
             (sine_wave_frequency >= self._MIN_SINE_WAVE_FREQUENCY) and
@@ -124,7 +148,16 @@ class Parameters:
                   f"{self._MIN_SINE_WAVE_FREQUENCY} and {self._MAX_SINE_WAVE_FREQUENCY}!")
             return False
 
-    def _check_add_noise(self, add_noise) -> bool:
+    def _check_add_noise(self, add_noise: Any) -> bool:
+        """Check "add noise" argument.
+
+        Args:
+            add_noise (Any): "add noise" argument.
+
+        Returns:
+            bool: True - "add noise" argument is valid.
+            False - "add noise" argument is invalid.
+        """
         if ((add_noise is not None) and
             (isinstance(add_noise, bool))):
             print("\"Add noise\" is valid.")
@@ -134,7 +167,16 @@ class Parameters:
                   "\"Add noise\" must be bool!")
             return False
     
-    def _check_volume(self, volume) -> bool:
+    def _check_volume(self, volume: Any) -> bool:
+        """Check volume.
+
+        Args:
+            volume (Any): volume.
+
+        Returns:
+            bool: True - volume is valid.
+            False - volume is invalid.
+        """
         if ((volume is not None) and
             (isinstance(volume, (int, float))) and
             (volume >= self._MIN_VOLUME) and
@@ -150,18 +192,38 @@ class Parameters:
 
     @property
     def sampling_frequency(self) -> int:
+        """Return current sampling frequency.
+
+        Returns:
+            int: current sampling frequency, Hz.
+        """
         return self._SAMPLING_FREQUENCY
 
     @property
     def samples_per_buffer(self) -> int:
+        """Return current number of samples in pyaudio input buffer.
+
+        Returns:
+            int: current number of samples in pyaudio input buffer.
+        """
         return self._SAMPLES_PER_BUFFER
  
     @property
     def sine_wave_frequency(self) -> int:
+        """Return current sine wave frequency.
+
+        Returns:
+            int: current sine wave frequency, Hz.
+        """
         return self._sine_wave_frequency
     
     @sine_wave_frequency.setter
-    def sine_wave_frequency(self, new_sine_wave_frequency) -> None:
+    def sine_wave_frequency(self, new_sine_wave_frequency: Any) -> None:
+        """Check, set and save new sine wave frequency. 
+
+        Args:
+            new_sine_wave_frequency (Any): new sine wave frequency, Hz.
+        """
         result: bool = self._check_sine_wave_frequency(
             sine_wave_frequency=new_sine_wave_frequency)
         if result is True:
@@ -173,10 +235,20 @@ class Parameters:
     
     @property
     def add_noise(self) -> bool:
+        """Return current "add noise" parameter.
+
+        Returns:
+            bool: current "add noise" parameter.
+        """
         return self._add_noise
     
     @add_noise.setter
-    def add_noise(self, new_add_noise) -> None:
+    def add_noise(self, new_add_noise: Any) -> None:
+        """Check, set and save new "add noise" parameter.
+
+        Args:
+            new_add_noise (Any): new "add noise" parameter.
+        """
         result: bool = self._check_add_noise(add_noise=new_add_noise)
         if result is True:
             self._add_noise = new_add_noise
@@ -187,10 +259,20 @@ class Parameters:
     
     @property
     def volume(self) -> float:
+        """Return current volume.
+
+        Returns:
+            float: current volume.
+        """
         return self._volume
     
     @volume.setter
-    def volume(self, new_volume) -> None:
+    def volume(self, new_volume: Any) -> None:
+        """Check, set and save new volume.
+
+        Args:
+            new_volume (Any): new volume.
+        """
         result: bool = self._check_volume(volume=new_volume)
         if result is True:
             self._volume = new_volume

@@ -1,6 +1,7 @@
 import queue
 import struct
 import threading
+from typing import Any
 
 import pyaudio
 
@@ -15,25 +16,24 @@ class Stream:
                  samples_per_buffer: int,
                  sine_wave_generator: SineWaveGenerator,
                  add_noise: bool,
-                 volume: float,
-                 multithread_queue: queue.Queue) -> None:
+                 volume: int | float,
+                 multithread_queue: queue.Queue[tuple[float, float, float]]) \
+                    -> None:
         super().__init__()
-        
+        """Start pyaudio input/output stream.
+
+        Raises:
+            ValueError: invalid arguments.
+        """
         # Check arguments.
-        if((sampling_frequency is None) or
-           (not isinstance(sampling_frequency, int)) or
+        if((not isinstance(sampling_frequency, int)) or
            (sampling_frequency <= 0) or
-           (samples_per_buffer is None) or
            (not isinstance(samples_per_buffer, int)) or
            (samples_per_buffer <= 0) or
-           (sine_wave_generator is None) or
            (not isinstance(sine_wave_generator, SineWaveGenerator)) or
-           (add_noise is None) or
            (not isinstance(add_noise, bool)) or
-           (volume is None) or
            (not isinstance(volume, (int, float))) or
            (volume <= 0) or
-           (multithread_queue is None) or
            (not isinstance(multithread_queue, queue.Queue))):
            raise ValueError("ERROR! Invalid arguments!")
 
@@ -51,7 +51,8 @@ class Stream:
         self._volume: float = volume
         self._mutex_volume: threading.Lock = threading.Lock()
 
-        self._multithread_queue: queue.Queue = multithread_queue
+        self._multithread_queue: queue.Queue[tuple[float, float, float]] = \
+            multithread_queue
 
         self._stream: pyaudio.Pyaudio.Stream = self._pyaudio_object.open(
             rate=sampling_frequency,
@@ -61,7 +62,7 @@ class Stream:
             output=True,
             frames_per_buffer=samples_per_buffer,
             stream_callback=self._callback)
-     
+        
         input_latency_ms: float = self._stream.get_input_latency() * 1000
         output_latency_ms: float = self._stream.get_output_latency() * 1000
         total_latency_ms: float = input_latency_ms + output_latency_ms
@@ -72,8 +73,26 @@ class Stream:
     def _callback(self,
                   in_data: bytes,
                   frame_count: int,
-                  time_info,
-                  status_flags):
+                  time_info: Any,
+                  status_flags: Any):
+        """Pyaudio input/output stream callback.
+
+        Get input voice from a microphone,
+        modulate it by a sine wave
+        and output modulated voice to a speaker.
+        Send input voice, sine wave and modulated voice samples to
+        a multithread queue for later plotting.
+
+        Args:
+            in_data (bytes): raw bytes of input voice data.
+            frame_count (int): number of input voice float samples.
+            time_info (Any): time information.
+            status_flags (Any): portAutio callback flag.
+
+        Returns:
+            _type_: raw bytes of modulated voice data,
+            portAudio callback return code.
+        """
         # Check arguments.
         if ((status_flags == pyaudio.paInputUnderflow) or
             (status_flags == pyaudio.paInputOverflow) or
@@ -128,7 +147,7 @@ class Stream:
                                                   modulated_voice_point)
             try:
                 self._multithread_queue.put(points, block=False)
-            except queue.Full as e:
+            except queue.Full:
                 pass
             
             # Increment index.
@@ -138,14 +157,26 @@ class Stream:
         return (output_bytes, pyaudio.paContinue)
     
     def is_active(self) -> bool:
+        """Return a flag that specifies whether pyaudio stream is active.
+
+        Returns:
+            bool: True - pyaudio input/output stream is active.
+            False - pyaudio input/output stream is not active.
+        """
         return self._stream.is_active()
 
     def close(self) -> None:
+        """Close pyaudio input/output stream."""
         self._stream.close()
         self._pyaudio_object.terminate()
 
     @property
     def add_noise(self) -> bool:
+        """Return current "add noise" parameter.
+
+        Returns:
+            bool: current "add noise" parameter.
+        """
         add_noise_copy: bool = True
         with self._mutex_add_noise:
             add_noise_copy = self._add_noise
@@ -153,9 +184,16 @@ class Stream:
     
     @add_noise.setter
     def add_noise(self, new_add_noise: bool) -> None:
+        """Check and set new "add noise" parameter.
+
+        Args:
+            new_add_noise (bool): new "add noise" parameter.
+
+        Raises:
+            ValueError: invalid argument.
+        """
         # Check argument.
-        if((new_add_noise is None) or
-           (not isinstance(new_add_noise, bool))):
+        if((not isinstance(new_add_noise, bool))):
             raise ValueError("ERROR! Invalid argument!")
 
         with self._mutex_add_noise:
@@ -163,16 +201,28 @@ class Stream:
 
     @property
     def volume(self) -> float:
+        """Return volume.
+
+        Returns:
+            float: volume.
+        """
         volume_copy: float = 0
         with self._mutex_volume:
             volume_copy = self._volume
         return volume_copy
 
     @volume.setter
-    def volume(self, new_volume: float) -> None:
+    def volume(self, new_volume: int | float) -> None:
+        """Check and set new volume.
+
+        Args:
+            new_volume (int | float): new volume.
+
+        Raises:
+            ValueError: invalid argument.
+        """
         # Check argument.
-        if((new_volume is None) or
-           (not isinstance(new_volume, (int, float))) or
+        if((not isinstance(new_volume, (int, float))) or
            (new_volume <= 0)):
             raise ValueError("ERROR! Invalid argument!")
 

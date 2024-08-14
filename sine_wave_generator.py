@@ -6,13 +6,20 @@ class SineWaveGenerator:
     def __init__(self,
                  sampling_frequency: int,
                  sine_wave_frequency: int) -> None:
+        """Initialize a sine wave with a specified frequency.
+
+        Args:
+            sampling_frequency (int): sampling frequency, Hz.
+            sine_wave_frequency (int): sine wave frequency. Hz.
+
+        Raises:
+            ValueError: invalid arguments.
+        """
         super().__init__()
 
         # Check arguments.
-        if((sampling_frequency is None) or
-           (not isinstance(sampling_frequency, int)) or
+        if((not isinstance(sampling_frequency, int)) or
            (sampling_frequency <= 0) or
-           (sine_wave_frequency is None) or
            (not isinstance(sine_wave_frequency, int)) or
            (sine_wave_frequency <= 0) or
            (sine_wave_frequency >= sampling_frequency/2)):
@@ -31,6 +38,7 @@ class SineWaveGenerator:
         self._generate_sine_wave()
 
     def _generate_sine_wave(self) -> None:
+        """Generate a buffer that contains one sine wave period."""
         with self._mutex_sine_wave_generator:
             self._sine_wave.clear()
             for i in range(0, self._number_of_samples_in_sine_wave_period, 1):
@@ -40,6 +48,11 @@ class SineWaveGenerator:
                 self._sine_wave.append(sine_wave_point)
     
     def get_sine_wave_point(self) -> float:
+        """Return next sine wave point.
+
+        Returns:
+            float: next sine wave point.
+        """
         sine_wave_point: float = 0
 
         with self._mutex_sine_wave_generator:
@@ -54,6 +67,11 @@ class SineWaveGenerator:
     
     @property
     def sine_wave_frequency(self) -> int:
+        """Return sine wave frequency.
+
+        Returns:
+            int: sine wave frequency, Hz.
+        """
         sine_wave_frequency_copy: int = 0
         with self._mutex_sine_wave_generator:
             sine_wave_frequency_copy = self._sine_wave_frequency
@@ -61,9 +79,19 @@ class SineWaveGenerator:
 
     @sine_wave_frequency.setter
     def sine_wave_frequency(self, new_sine_wave_frequency: int) -> None:
+        """Check and set new sine wave frequency.
+
+        Check and set new sine wave frequency.
+        Regenerate a buffer that contains one sine wave period.
+
+        Args:
+            new_sine_wave_frequency (int): new sine wave frequency, Hz.
+
+        Raises:
+            ValueError: invalid argument.
+        """
         # Check argument.
-        if((new_sine_wave_frequency is None) or
-           (not isinstance(new_sine_wave_frequency, int)) or
+        if((not isinstance(new_sine_wave_frequency, int)) or
            (new_sine_wave_frequency <= 0) or
            (new_sine_wave_frequency >= self._sampling_frequency/2)):
             raise ValueError("ERROR! Invalid argument!")

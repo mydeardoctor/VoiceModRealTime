@@ -1,5 +1,6 @@
 import queue
 import threading
+from typing import Any
 
 import matplotlib.animation
 import matplotlib.axes
@@ -12,17 +13,20 @@ class Plot:
     def __init__(self,
                  sampling_frequency: int,
                  samples_per_buffer: int,
-                 multithread_queue: queue.Queue) -> None:
+                 multithread_queue: queue.Queue[tuple[float, float, float]]) \
+                    -> None:
+        """Start plotting input voice, sine wave and modulated voice.
+
+        Raises:
+            ValueError: invalid arguments.
+        """
         super().__init__()
         
         # Check arguments.
-        if((sampling_frequency is None) or
-           (not isinstance(sampling_frequency, int)) or
+        if((not isinstance(sampling_frequency, int)) or
            (sampling_frequency <= 0) or
-           (samples_per_buffer is None) or
            (not isinstance(samples_per_buffer, int)) or
            (samples_per_buffer <= 0) or
-           (multithread_queue is None) or
            (not isinstance(multithread_queue, queue.Queue))):
             raise ValueError("ERROR! Invalid arguments!")
 
@@ -31,7 +35,8 @@ class Plot:
         self._update_interval_ms: int = int(sample_time_ms
                                             * self._samples_per_update_interval)
 
-        self._multithread_queue: queue.Queue = multithread_queue
+        self._multithread_queue: queue.Queue[tuple[float, float, float]] = \
+            multithread_queue
 
         self._figure: matplotlib.figure.Figure = plt.figure()
         self._axes: matplotlib.axes.Axes = self._figure.add_subplot()
@@ -68,6 +73,13 @@ class Plot:
         plt.show(block=False)
 
     def _init_animation(self):
+        """Initialize a clear frame.
+
+        Returns:
+            _type_: line to draw input voice,
+            line to draw sine wave,
+            line to draw modulated voice.
+        """
         x = [i for i in range(0, self._samples_per_update_interval, 1)]
         y = [0.0] * self._samples_per_update_interval
 
@@ -80,6 +92,16 @@ class Plot:
                 self._modulated_voice_line)
 
     def _get_frame_for_animation(self):
+        """Return data for next animation frame.
+
+        Receive and return input voice, sine wave and modulated voice samples
+        from a multithread queue for plotting.
+
+        Yields:
+            _type_: buffer with input voice samples,
+            buffer with sine wave samples,
+            buffer with modulated voice samples.
+        """
         input_voice_buffer: list[float] = []
         sine_wave_buffer: list[float] = []
         modulated_voice_buffer: list[float] = []
@@ -112,7 +134,17 @@ class Plot:
                    sine_wave_buffer_copy,
                    modulated_voice_buffer_copy)
                 
-    def _update_animation(self, frame, *fargs):
+    def _update_animation(self, frame: Any, *fargs: Any):
+        """Draw animation frame.
+
+        Args:
+            frame (Any): data to draw.
+
+        Returns:
+            _type_: line to draw input voice,
+            line to draw sine wave,
+            line to draw modulated voice.
+        """
         input_voice_buffer: list[float] = []
         sine_wave_buffer: list[float] = []
         modulated_voice_buffer: list[float] = []
@@ -127,16 +159,23 @@ class Plot:
                 self._sine_wave_line,
                 self._modulated_voice_line)
     
-    def close(self) -> None:            
+    def close(self) -> None:
+        """Stop animation and close plot."""
         self.running = False
         try:
             self._animation.pause()
-        except AttributeError as e:
+        except AttributeError:
             pass
         plt.close(fig=self._figure)
 
     @property
     def running(self) -> bool:
+        """Return a flag that specifies whether plot is running.
+
+        Returns:
+            bool: True - plot is running.
+            False - plot is not running.
+        """
         running_copy: bool = True
         with self._mutex_running:
             running_copy = self._running
@@ -144,9 +183,16 @@ class Plot:
 
     @running.setter
     def running(self, new_running: bool) -> None:
+        """Check and set new "running" flag.
+
+        Args:
+            new_running (bool): new "running" flag.
+
+        Raises:
+            ValueError: invalid argument.
+        """
         # Check argument.
-        if((new_running is None) or
-           (not isinstance(new_running, bool))):
+        if((not isinstance(new_running, bool))):
             raise ValueError("ERROR! Invalid argument!")
 
         with self._mutex_running:

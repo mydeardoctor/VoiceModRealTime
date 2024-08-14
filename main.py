@@ -9,24 +9,29 @@ from stream import Stream
 
 # TODO
 # TODOs
-# Problems
 
-# pylance
-# Docstrings for modules, classes, functions. PEP257. Document exceptions raised
-
+# raspberry убрать matplotlib
 # Размер буфера, latency. https://www.portaudio.com/docs/latency.html. На распберри запускать от root, чтобы latency была меньше. You must also set PA_MIN_LATENCY_MSEC using the appropriate command for your shell.
 # https://github.com/PortAudio/portaudio/wiki/Platforms_RaspberryPi
-# raspberry убрать matplotlib
 # подключиться к распберри по телефону
 
 # подобрать частоту синусоиды
 
-# README.md
-# requirements.txt
 # gitignore
+# requirements.txt
+# README.md
 
 
 def main():
+    """Start the application.
+
+    Initialize application parameters.
+    Start plotting input voice, sine wave and modulated voice.
+    Start pyaudio input/output stream that gets input voice from a microphone,
+    modulates it by a sine wave and outputs modulated voice to a speaker.
+    Start a command-line menu to dynamically change sine wave frequency,
+    add or remove noise, change volume.
+    """
     parameters: Parameters = Parameters()
     
     sine_wave_generator: SineWaveGenerator = SineWaveGenerator(
@@ -34,8 +39,8 @@ def main():
         sine_wave_frequency=parameters.sine_wave_frequency)
 
     multithread_queue_samples: int = parameters.samples_per_buffer * 4
-    multithread_queue: queue.Queue = queue.Queue(
-        maxsize=multithread_queue_samples)
+    multithread_queue: queue.Queue[tuple[float, float, float]] = \
+        queue.Queue(maxsize=multithread_queue_samples)
 
     plot: Plot = Plot(sampling_frequency=parameters.sampling_frequency,
                       samples_per_buffer=parameters.samples_per_buffer,
@@ -124,9 +129,6 @@ def main():
                     parameters.volume = new_volume
                     stream.volume = parameters.volume
 
-                    menu_state = MenuState.MAIN
-
-                case _:
                     menu_state = MenuState.MAIN
 
     except BaseException as e:
